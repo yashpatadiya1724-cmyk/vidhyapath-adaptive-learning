@@ -1,5 +1,9 @@
 # 🚀 VidhyaPath – Adaptive E-Learning Platform
 
+[![CI](https://github.com/yashpatadiya1724-cmyk/vidhyapath-adaptive-learning/actions/workflows/ci.yml/badge.svg)](https://github.com/yashpatadiya1724-cmyk/vidhyapath-adaptive-learning/actions/workflows/ci.yml)
+[![Sponsor](https://img.shields.io/badge/Sponsor-Mansitra%20Foundation-ea4aaa?style=flat&logo=github-sponsors)](https://www.mansitra.in/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 ## 🇮🇳 Vikshit Bharat 2047 | Pillar 3: Education & Skill Development
 ### NEP 2020 & Skill India | Inclusive Learning for All
 
