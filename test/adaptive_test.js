@@ -1,0 +1,207 @@
+// ===== VIDHYAPATH ADAPTIVE LEARNING AUTOMATED TEST SUITE =====
+const assert = require('assert');
+const http = require('http');
+const path = require('path');
+const fs = require('fs');
+
+console.log('🧪 Starting VidhyaPath Adaptive Learning Test Suite...\n');
+
+let testsPassed = 0;
+let testsFailed = 0;
+
+function runTest(name, fn) {
+  try {
+    fn();
+    console.log(`  ✓ ${name}`);
+    testsPassed++;
+  } catch (err) {
+    console.error(`  ✗ ${name}`);
+    console.error(`    ${err.message}`);
+    testsFailed++;
+  }
+}
+
+async function runAsyncTest(name, fn) {
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+    testsPassed++;
+  } catch (err) {
+    console.error(`  ✗ ${name}`);
+    console.error(`    ${err.message}`);
+    testsFailed++;
+  }
+}
+
+// ===== 1. CLIENT ADAPTIVE HEURISTICS TESTS =====
+console.log('--- Suite 1: Client Adaptive Heuristics Engine ---');
+
+const AdaptiveUI = require('../js/adaptiveUI');
+
+runTest('AdaptiveUI defines core mode thresholds correctly', () => {
+  assert(AdaptiveUI.THRESHOLDS, 'THRESHOLDS object must be exported');
+  assert.strictEqual(AdaptiveUI.THRESHOLDS.STRUGGLING.accuracy, 50);
+  assert.strictEqual(AdaptiveUI.THRESHOLDS.STRUGGLING.responseTime, 25000);
+  assert.strictEqual(AdaptiveUI.THRESHOLDS.PROGRESSING.accuracy, 65);
+  assert.strictEqual(AdaptiveUI.THRESHOLDS.EXCELLING.accuracy, 80);
+  assert.strictEqual(AdaptiveUI.THRESHOLDS.EXCELLING.responseTime, 8000);
+});
+
+runTest('AdaptiveUI maps difficulty correctly from modes', () => {
+  assert.strictEqual(AdaptiveUI.getDifficultyFromMode('struggling'), 'easy');
+  assert.strictEqual(AdaptiveUI.getDifficultyFromMode('progressing'), 'easy');
+  assert.strictEqual(AdaptiveUI.getDifficultyFromMode('performing'), 'medium');
+  assert.strictEqual(AdaptiveUI.getDifficultyFromMode('excelling'), 'hard');
+  assert.strictEqual(AdaptiveUI.getDifficultyFromMode('unknown'), 'medium');
+});
+
+runTest('AdaptiveUI mode configurations have required attributes', () => {
+  const modes = ['struggling', 'progressing', 'performing', 'excelling'];
+  modes.forEach(mode => {
+    const config = AdaptiveUI.UI_MODES[mode];
+    assert(config, `Mode ${mode} must exist`);
+    assert(config.name, `Mode ${mode} must have a name`);
+    assert(config.color, `Mode ${mode} must have a theme color`);
+    assert(config.emoji, `Mode ${mode} must have an emoji`);
+    assert(Array.isArray(config.actions), `Mode ${mode} must have an actions list`);
+  });
+});
+
+// ===== 2. BACKEND API & ROUTE TESTS =====
+console.log('\n--- Suite 2: Express Backend API & Endpoints ---');
+
+const app = require('../backend/server');
+
+function makeRequest(server, options, postData = null) {
+  return new Promise((resolve, reject) => {
+    const port = server.address().port;
+    const reqOptions = {
+      hostname: '127.0.0.1',
+      port: port,
+      path: options.path,
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    };
+
+    const req = http.request(reqOptions, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(body);
+        } catch (e) {
+          parsed = body;
+        }
+        resolve({ status: res.statusCode, data: parsed, headers: res.headers });
+      });
+    });
+
+    req.on('error', reject);
+    if (postData) {
+      req.write(typeof postData === 'string' ? postData : JSON.stringify(postData));
+    }
+    req.end();
+  });
+}
+
+(async () => {
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+  try {
+    await runAsyncTest('GET /api/health returns 200 OK and mission status', async () => {
+      const res = await makeRequest(server, { path: '/api/health', method: 'GET' });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.status, 'OK');
+      assert.strictEqual(res.data.platform, 'VidhyaPath');
+      assert(res.data.mission.includes('NEP 2020'), 'Mission must mention NEP 2020');
+    });
+
+    await runAsyncTest('POST /api/adaptive/analyze detects struggling learner', async () => {
+      const payload = {
+        accuracy: 35,
+        avgResponseTime: 28000,
+        consecutiveCorrect: 0,
+        consecutiveWrong: 3
+      };
+      const res = await makeRequest(server, { path: '/api/adaptive/analyze', method: 'POST' }, payload);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.mode, 'struggling');
+      assert.strictEqual(res.data.difficulty, 'easy');
+      assert.strictEqual(res.data.recommendation.enableSimpleMode, true);
+      assert.strictEqual(res.data.recommendation.fontIncrease, true);
+    });
+
+    await runAsyncTest('POST /api/adaptive/analyze detects excelling learner', async () => {
+      const payload = {
+        accuracy: 92,
+        avgResponseTime: 6500,
+        consecutiveCorrect: 6,
+        consecutiveWrong: 0
+      };
+      const res = await makeRequest(server, { path: '/api/adaptive/analyze', method: 'POST' }, payload);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.mode, 'excelling');
+      assert.strictEqual(res.data.difficulty, 'hard');
+      assert.strictEqual(res.data.recommendation.unlockNextLesson, true);
+    });
+
+    await runAsyncTest('POST /api/student creates or updates student profile', async () => {
+      const studentPayload = {
+        id: 'test-student-42',
+        name: 'Aarav Sharma',
+        avatar: '👨‍🎓',
+        settings: { simpleMode: false, highContrast: false },
+        progress: { totalPoints: 120, lessonsCompleted: 3 }
+      };
+      const res = await makeRequest(server, { path: '/api/student', method: 'POST' }, studentPayload);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.success, true);
+      assert.strictEqual(res.data.student.name, 'Aarav Sharma');
+    });
+
+    await runAsyncTest('GET /api/student/:id retrieves existing student profile', async () => {
+      const res = await makeRequest(server, { path: '/api/student/test-student-42', method: 'GET' });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.id, 'test-student-42');
+      assert.strictEqual(res.data.name, 'Aarav Sharma');
+    });
+
+    await runAsyncTest('POST /api/session logs student quiz attempt', async () => {
+      const sessionPayload = {
+        studentId: 'test-student-42',
+        quizId: 'quiz-science-01',
+        score: 90,
+        accuracy: 90,
+        avgResponseTime: 7200
+      };
+      const res = await makeRequest(server, { path: '/api/session', method: 'POST' }, sessionPayload);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.success, true);
+      assert(res.data.sessionId, 'sessionId must be returned');
+    });
+
+    await runAsyncTest('GET /api/leaderboard returns ranked student leaderboard', async () => {
+      const res = await makeRequest(server, { path: '/api/leaderboard', method: 'GET' });
+      assert.strictEqual(res.status, 200);
+      assert(Array.isArray(res.data), 'Leaderboard must be an array');
+    });
+
+  } finally {
+    server.close();
+  }
+
+  console.log('\n================================');
+  console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
+  console.log('================================');
+
+  if (testsFailed > 0) {
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
+})();
