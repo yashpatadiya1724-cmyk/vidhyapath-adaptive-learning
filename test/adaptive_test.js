@@ -191,8 +191,66 @@ function makeRequest(server, options, postData = null) {
       assert(Array.isArray(res.data), 'Leaderboard must be an array');
     });
 
+    await runAsyncTest('POST /api/student returns 400 when student ID is missing', async () => {
+      const res = await makeRequest(server, { path: '/api/student', method: 'POST' }, { name: 'Anonymous' });
+      assert.strictEqual(res.status, 400);
+      assert.strictEqual(res.data.error, 'Student ID required');
+    });
+
+    await runAsyncTest('PUT /api/student/:id/progress updates existing student score', async () => {
+      const updatePayload = { totalPoints: 250, lessonsCompleted: 5 };
+      const res = await makeRequest(server, { path: '/api/student/test-student-42/progress', method: 'PUT' }, updatePayload);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.data.success, true);
+
+      // Verify updated values via GET
+      const verifyRes = await makeRequest(server, { path: '/api/student/test-student-42', method: 'GET' });
+      assert.strictEqual(verifyRes.data.progress.totalPoints, 250);
+      assert.strictEqual(verifyRes.data.progress.lessonsCompleted, 5);
+    });
+
+    await runAsyncTest('PUT /api/student/:id/progress returns 404 for missing student', async () => {
+      const res = await makeRequest(server, { path: '/api/student/missing-student-999/progress', method: 'PUT' }, { totalPoints: 10 });
+      assert.strictEqual(res.status, 404);
+      assert.strictEqual(res.data.error, 'Student not found');
+    });
+
+    await runAsyncTest('GET /api/sessions/:studentId retrieves student quiz history', async () => {
+      const res = await makeRequest(server, { path: '/api/sessions/test-student-42', method: 'GET' });
+      assert.strictEqual(res.status, 200);
+      assert(Array.isArray(res.data), 'Sessions must be an array');
+      assert(res.data.length >= 1, 'Should find at least 1 session for test student');
+      assert.strictEqual(res.data[0].studentId, 'test-student-42');
+    });
+
+    await runAsyncTest('POST /api/adaptive/analyze correctly identifies progressing and performing modes', async () => {
+      // Progressing mode
+      const progressingRes = await makeRequest(server, { path: '/api/adaptive/analyze', method: 'POST' }, {
+        accuracy: 58,
+        avgResponseTime: 14000,
+        consecutiveCorrect: 2,
+        consecutiveWrong: 1
+      });
+      assert.strictEqual(progressingRes.data.mode, 'progressing');
+      assert.strictEqual(progressingRes.data.difficulty, 'easy');
+
+      // Performing mode
+      const performingRes = await makeRequest(server, { path: '/api/adaptive/analyze', method: 'POST' }, {
+        accuracy: 74,
+        avgResponseTime: 10000,
+        consecutiveCorrect: 3,
+        consecutiveWrong: 0
+      });
+      assert.strictEqual(performingRes.data.mode, 'performing');
+      assert.strictEqual(performingRes.data.difficulty, 'medium');
+    });
+
   } finally {
     server.close();
+    const dbPath = path.join(__dirname, '../backend/db.json');
+    if (fs.existsSync(dbPath)) {
+      try { fs.unlinkSync(dbPath); } catch {}
+    }
   }
 
   console.log('\n================================');
