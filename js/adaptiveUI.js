@@ -118,20 +118,26 @@ const AdaptiveUI = (() => {
       trigger: sessionData
     });
 
-    // Show adaptive notification
-    showAdaptiveNotification(modeConfig);
+    if (typeof document !== 'undefined') {
+      // Show adaptive notification
+      showAdaptiveNotification(modeConfig);
 
-    // Execute actions
-    modeConfig.actions.forEach(action => executeAction(action));
+      // Execute actions
+      modeConfig.actions.forEach(action => executeAction(action));
 
-    // Update adaptive indicator
-    App.updateAdaptiveIndicator(mode, modeConfig.emoji + ' ' + modeConfig.name);
+      // Update adaptive indicator
+      if (typeof App !== 'undefined' && App.updateAdaptiveIndicator) {
+        App.updateAdaptiveIndicator(mode, modeConfig.emoji + ' ' + modeConfig.name);
+      }
 
-    // Save to profile
-    App.updateAdaptive({ uiMode: mode });
+      // Save to profile
+      if (typeof App !== 'undefined' && App.updateAdaptive) {
+        App.updateAdaptive({ uiMode: mode });
+      }
 
-    // Log for dashboard
-    logAdaptation(mode, sessionData);
+      // Log for dashboard
+      logAdaptation(mode, sessionData);
+    }
 
     setTimeout(() => { isAdapting = false; }, 2000);
   }
