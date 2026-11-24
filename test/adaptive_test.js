@@ -67,6 +67,37 @@ runTest('AdaptiveUI mode configurations have required attributes', () => {
   });
 });
 
+runTest('AdaptiveUI streak overrides force struggling or excelling mode', () => {
+  // 3 consecutive wrongs forces struggling even with high accuracy
+  const modeWrongStreak = AdaptiveUI.analyze({
+    accuracy: 85,
+    avgResponseTime: 6000,
+    consecutiveWrong: 3,
+    consecutiveCorrect: 0
+  });
+  assert.strictEqual(modeWrongStreak, 'struggling', '3 consecutive wrong answers must trigger struggling mode');
+
+  // 8 consecutive correct answers promotes to excelling
+  const modeCorrectStreak = AdaptiveUI.analyze({
+    accuracy: 75,
+    avgResponseTime: 9500,
+    consecutiveWrong: 0,
+    consecutiveCorrect: 8
+  });
+  assert.strictEqual(modeCorrectStreak, 'excelling', '8 consecutive correct answers must trigger excelling mode');
+});
+
+runTest('AdaptiveUI getModeColor and getModeEmoji provide UI styling with fallbacks', () => {
+  assert.strictEqual(AdaptiveUI.getModeColor('struggling'), '#FF6B6B');
+  assert.strictEqual(AdaptiveUI.getModeColor('excelling'), '#6C63FF');
+  assert.strictEqual(AdaptiveUI.getModeEmoji('struggling'), '🌱');
+  assert.strictEqual(AdaptiveUI.getModeEmoji('excelling'), '🚀');
+
+  // Unknown mode fallbacks
+  assert.strictEqual(AdaptiveUI.getModeColor('invalid_mode'), '#6C63FF');
+  assert.strictEqual(AdaptiveUI.getModeEmoji('invalid_mode'), '📚');
+});
+
 // ===== 2. BACKEND API & ROUTE TESTS =====
 console.log('\n--- Suite 2: Express Backend API & Endpoints ---');
 
