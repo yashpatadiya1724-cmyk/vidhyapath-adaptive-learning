@@ -98,6 +98,21 @@ runTest('AdaptiveUI getModeColor and getModeEmoji provide UI styling with fallba
   assert.strictEqual(AdaptiveUI.getModeEmoji('invalid_mode'), '📚');
 });
 
+runTest('AdaptiveUI timer multiplier and hints assistance behave correctly across modes', () => {
+  // Timer multipliers
+  assert.strictEqual(AdaptiveUI.getTimerMultiplier('struggling'), 1.5, 'Struggling learners get 1.5x time');
+  assert.strictEqual(AdaptiveUI.getTimerMultiplier('progressing'), 1.2, 'Progressing learners get 1.2x time');
+  assert.strictEqual(AdaptiveUI.getTimerMultiplier('performing'), 1.0, 'Performing learners get 1.0x standard time');
+  assert.strictEqual(AdaptiveUI.getTimerMultiplier('excelling'), 0.85, 'Excelling learners get 0.85x challenge time');
+  assert.strictEqual(AdaptiveUI.getTimerMultiplier('unrecognized_mode'), 1.0, 'Fallback timer multiplier is 1.0');
+
+  // Hints
+  assert.strictEqual(AdaptiveUI.shouldShowHints('struggling'), true, 'Struggling learners must receive hints');
+  assert.strictEqual(AdaptiveUI.shouldShowHints('progressing'), true, 'Progressing learners must receive hints');
+  assert.strictEqual(AdaptiveUI.shouldShowHints('performing'), false, 'Performing learners do not receive hints');
+  assert.strictEqual(AdaptiveUI.shouldShowHints('excelling'), false, 'Excelling learners do not receive hints');
+});
+
 // ===== 2. BACKEND API & ROUTE TESTS =====
 console.log('\n--- Suite 2: Express Backend API & Endpoints ---');
 
