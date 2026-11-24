@@ -334,6 +334,21 @@ const AdaptiveUI = (() => {
   function getModeColor(mode) { return UI_MODES[mode]?.color || '#6C63FF'; }
   function getModeEmoji(mode) { return UI_MODES[mode]?.emoji || '📚'; }
 
+  // ===== QUESTION TIMER & HINTS MULTIPLIER =====
+  function getTimerMultiplier(mode) {
+    const multipliers = {
+      struggling: 1.5,
+      progressing: 1.2,
+      performing: 1.0,
+      excelling: 0.85,
+    };
+    return multipliers[mode] !== undefined ? multipliers[mode] : 1.0;
+  }
+
+  function shouldShowHints(mode) {
+    return mode === 'struggling' || mode === 'progressing';
+  }
+
   return {
     analyze,
     adaptUI,
@@ -344,6 +359,8 @@ const AdaptiveUI = (() => {
     getHistory,
     getModeColor,
     getModeEmoji,
+    getTimerMultiplier,
+    shouldShowHints,
     THRESHOLDS,
     UI_MODES
   };
